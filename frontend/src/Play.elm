@@ -1,7 +1,44 @@
 module Play exposing (main)
 
-import Html exposing (Html)
+import Browser exposing (Document)
+import Html
 
-main : Html msg
+
+main : Program () Model Msg
 main =
-    Html.text "Hello, World"
+    Browser.document
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
+
+type Model
+    = Blank
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( Blank, Cmd.none )
+
+
+view : Model -> Document Msg
+view _ =
+    { title = "Peg Solitair"
+    , body = [ Html.text "Hello, World!" ]
+    }
+
+
+type Msg
+    = Nothing
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update _ model =
+    ( model, Cmd.none )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
