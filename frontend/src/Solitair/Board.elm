@@ -25,6 +25,24 @@ type alias Location =
     ( Float, Float )
 
 
+standard : Model
+standard =
+    Board
+        { kind = Rectangular
+        , positions =
+            [ [ ( -1, 3 ), ( 0, 3 ), ( 1, 3 ) ]
+            , [ ( -1, 2 ), ( 0, 2 ), ( 1, 2 ) ]
+            , [ ( -3, 1 ), ( -2, 1 ), ( -1, 1 ), ( 0, 1 ), ( 1, 1 ), ( 2, 1 ), ( 3, 1 ) ]
+            , [ ( -3, 0 ), ( -2, 0 ), ( -1, 0 ), ( 0, 0 ), ( 1, 0 ), ( 2, 0 ), ( 3, 0 ) ]
+            , [ ( -3, -1 ), ( -2, -1 ), ( -1, -1 ), ( 0, -1 ), ( 1, -1 ), ( 2, -1 ), ( 3, -1 ) ]
+            , [ ( -1, -2 ), ( 0, -2 ), ( 1, -2 ) ]
+            , [ ( -1, -3 ), ( 0, -3 ), ( 1, -3 ) ]
+            ]
+                |> List.concatMap (List.map identity)
+                |> Set.fromList
+        }
+
+
 boundingBox : Set Position -> Maybe ( Position, Position )
 boundingBox positions =
     let
@@ -61,26 +79,30 @@ location kind ( x, y ) =
             ( lx + ly / 2.0, ds * ly )
 
 
-standard : Model
-standard =
-    Board
-        { kind = Rectangular
-        , positions =
-            [ [ ( -1, 3 ), ( 0, 3 ), ( 1, 3 ) ]
-            , [ ( -1, 2 ), ( 0, 2 ), ( 1, 2 ) ]
-            , [ ( -3, 1 ), ( -2, 1 ), ( -1, 1 ), ( 0, 1 ), ( 1, 1 ), ( 2, 1 ), ( 3, 1 ) ]
-            , [ ( -3, 0 ), ( -2, 0 ), ( -1, 0 ), ( 0, 0 ), ( 1, 0 ), ( 2, 0 ), ( 3, 0 ) ]
-            , [ ( -3, -1 ), ( -2, -1 ), ( -1, -1 ), ( 0, -1 ), ( 1, -1 ), ( 2, -1 ), ( 3, -1 ) ]
-            , [ ( -1, -2 ), ( 0, -2 ), ( 1, -2 ) ]
-            , [ ( -1, -3 ), ( 0, -3 ), ( 1, -3 ) ]
-            ]
-                |> List.concatMap (List.map identity)
-                |> Set.fromList
-        }
+type alias Configuration =
+    { peg : Circular {}
+    , hole : Circular {}
+    }
+
+
+type alias Circular e =
+    { e | radius : String, stroke : String, fill : String }
+
+
+default : Configuration
+default =
+    { peg = { radius = "0.3", stroke = "black", fill = "black" }
+    , hole = { radius = "0.1", stroke = "gray", fill = "white" }
+    }
 
 
 view : Set Position -> Model -> Svg msg
-view pegs (Board { kind, positions }) =
+view =
+    viewTemplate default
+
+
+viewTemplate : Configuration -> Set Position -> Model -> Svg msg
+viewTemplate config pegs (Board { kind, positions }) =
     let
         locate =
             location kind
@@ -96,13 +118,13 @@ view pegs (Board { kind, positions }) =
         [ positions
             |> Set.map locate
             |> Set.toList
-            |> List.map viewHole
-            |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke "black", Attribute.fill "white" ]
+            |> List.map (viewHole config.hole)
+            |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.hole.stroke, Attribute.fill config.hole.fill ]
         , pegs
             |> Set.map locate
             |> Set.toList
-            |> List.map viewPeg
-            |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke "black", Attribute.fill "black" ]
+            |> List.map (viewPeg config.peg)
+            |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.peg.stroke, Attribute.fill config.peg.fill ]
         ]
 
 
@@ -118,11 +140,11 @@ toViewBox ( ( llx, lly ), ( urx, ury ) ) =
         |> Attribute.viewBox
 
 
-viewHole : Location -> Svg msg
-viewHole ( x, y ) =
-    Svg.circle [ Attribute.r "0.1", Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
+viewHole : Circular {} -> Location -> Svg msg
+viewHole config ( x, y ) =
+    Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
 
 
-viewPeg : Location -> Svg msg
-viewPeg ( x, y ) =
-    Svg.circle [ Attribute.r "0.3", Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
+viewPeg : Circular {} -> Location -> Svg msg
+viewPeg config ( x, y ) =
+    Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
