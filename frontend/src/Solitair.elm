@@ -9,6 +9,7 @@ type Model
     = Solitair
         { board : Board.Model
         , pegs : Set Board.Position
+        , selected : Maybe Board.Position
         }
 
 
@@ -27,6 +28,7 @@ standard =
             ]
                 |> List.concatMap (List.map identity)
                 |> Set.fromList
+        , selected = Nothing
         }
 
 
@@ -34,14 +36,20 @@ view : Model -> Html Msg
 view (Solitair { board, pegs }) =
     Html.div []
         [ Html.h2 [] [ Html.text "Classic" ]
-        , Board.view pegs board
+        , Board.view { selectPeg = Select, deselectPeg = Deselect } pegs board
         ]
 
 
 type Msg
-    = DoNothing
+    = Select Board.Position
+    | Deselect
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    ( model, Cmd.none )
+update msg (Solitair model) =
+    case msg of
+        Select position ->
+            ( Solitair { model | selected = Just position }, Cmd.none )
+
+        Deselect ->
+            ( Solitair { model | selected = Nothing }, Cmd.none )

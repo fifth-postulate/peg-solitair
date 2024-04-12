@@ -3,6 +3,7 @@ module Solitair.Board exposing (Model, Position, standard, view)
 import Set exposing (Set)
 import Svg exposing (Attribute, Svg)
 import Svg.Attributes as Attribute
+import Svg.Events as Event
 
 
 type Model
@@ -96,13 +97,19 @@ default =
     }
 
 
-view : Set Position -> Model -> Svg msg
+type alias Messages msg =
+    { selectPeg : Position -> msg
+    , deselectPeg : msg
+    }
+
+
+view : Messages msg -> Set Position -> Model -> Svg msg
 view =
     viewTemplate default
 
 
-viewTemplate : Configuration -> Set Position -> Model -> Svg msg
-viewTemplate config pegs (Board { kind, positions }) =
+viewTemplate : Configuration -> Messages msg -> Set Position -> Model -> Svg msg
+viewTemplate config messages pegs (Board { kind, positions }) =
     let
         locate =
             location kind
@@ -121,9 +128,9 @@ viewTemplate config pegs (Board { kind, positions }) =
             |> List.map (viewHole config.hole)
             |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.hole.stroke, Attribute.fill config.hole.fill ]
         , pegs
-            |> Set.map locate
+            |> Set.map (\p -> ( p, locate p ))
             |> Set.toList
-            |> List.map (viewPeg config.peg)
+            |> List.map (\( p, l ) -> viewPeg (messages.selectPeg p) config.peg l)
             |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.peg.stroke, Attribute.fill config.peg.fill ]
         ]
 
@@ -145,6 +152,12 @@ viewHole config ( x, y ) =
     Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
 
 
-viewPeg : Circular {} -> Location -> Svg msg
-viewPeg config ( x, y ) =
-    Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
+viewPeg : msg -> Circular {} -> Location -> Svg msg
+viewPeg message config ( x, y ) =
+    Svg.circle
+        [ Event.onClick message
+        , Attribute.r config.radius
+        , Attribute.cx <| String.fromFloat x
+        , Attribute.cy <| String.fromFloat y
+        ]
+        []
