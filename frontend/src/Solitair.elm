@@ -33,10 +33,10 @@ standard =
 
 
 view : Model -> Html Msg
-view (Solitair { board, pegs }) =
+view (Solitair { board, pegs, selected }) =
     Html.div []
         [ Html.h2 [] [ Html.text "Classic" ]
-        , Board.view { selectPeg = Select, deselectPeg = Deselect } pegs board
+        , Board.view { selectPeg = Select, deselectPeg = Deselect } selected pegs board
         ]
 
 

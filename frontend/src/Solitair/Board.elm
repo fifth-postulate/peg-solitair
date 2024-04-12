@@ -81,7 +81,7 @@ location kind ( x, y ) =
 
 
 type alias Configuration =
-    { peg : Circular {}
+    { peg : Circular (Selectable (Circular {}))
     , hole : Circular {}
     }
 
@@ -90,10 +90,20 @@ type alias Circular e =
     { e | radius : String, stroke : String, fill : String }
 
 
+type alias Selectable e =
+    { selected : e
+    }
+
+
 default : Configuration
 default =
-    { peg = { radius = "0.3", stroke = "black", fill = "black" }
-    , hole = { radius = "0.1", stroke = "gray", fill = "white" }
+    { peg =
+        { radius = "0.3"
+        , stroke = "black"
+        , fill = "black"
+        , selected = { radius = "0.3", stroke = "blue", fill = "blue" }
+        }
+    , hole = { radius = "0.20", stroke = "gray", fill = "white" }
     }
 
 
@@ -103,13 +113,13 @@ type alias Messages msg =
     }
 
 
-view : Messages msg -> Set Position -> Model -> Svg msg
+view : Messages msg -> Maybe Position -> Set Position -> Model -> Svg msg
 view =
     viewTemplate default
 
 
-viewTemplate : Configuration -> Messages msg -> Set Position -> Model -> Svg msg
-viewTemplate config messages pegs (Board { kind, positions }) =
+viewTemplate : Configuration -> Messages msg -> Maybe Position -> Set Position -> Model -> Svg msg
+viewTemplate config messages selectedPeg pegs (Board { kind, positions }) =
     let
         locate =
             location kind
@@ -120,6 +130,19 @@ viewTemplate config messages pegs (Board { kind, positions }) =
                 |> Maybe.map (Tuple.mapBoth locate locate)
                 |> Maybe.withDefault ( ( 0, 0 ), ( 1, 1 ) )
                 |> toViewBox
+
+        viewAPeg : ( Position, Location ) -> Svg msg
+        viewAPeg ( p, l ) =
+            case selectedPeg of
+                Just q ->
+                    if p == q then
+                        viewPeg messages.deselectPeg config.peg.selected l
+
+                    else
+                        viewPeg (messages.selectPeg p) config.peg l
+
+                _ ->
+                    viewPeg (messages.selectPeg p) config.peg l
     in
     Svg.svg [ viewBox, Attribute.width "60vmin", Attribute.height "60vmin" ]
         [ positions
@@ -130,7 +153,7 @@ viewTemplate config messages pegs (Board { kind, positions }) =
         , pegs
             |> Set.map (\p -> ( p, locate p ))
             |> Set.toList
-            |> List.map (\( p, l ) -> viewPeg (messages.selectPeg p) config.peg l)
+            |> List.map viewAPeg
             |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.peg.stroke, Attribute.fill config.peg.fill ]
         ]
 
@@ -147,17 +170,19 @@ toViewBox ( ( llx, lly ), ( urx, ury ) ) =
         |> Attribute.viewBox
 
 
-viewHole : Circular {} -> Location -> Svg msg
+viewHole : Circular e -> Location -> Svg msg
 viewHole config ( x, y ) =
     Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
 
 
-viewPeg : msg -> Circular {} -> Location -> Svg msg
+viewPeg : msg -> Circular e -> Location -> Svg msg
 viewPeg message config ( x, y ) =
     Svg.circle
         [ Event.onClick message
         , Attribute.r config.radius
         , Attribute.cx <| String.fromFloat x
         , Attribute.cy <| String.fromFloat y
+        , Attribute.stroke config.stroke
+        , Attribute.fill config.fill
         ]
         []
