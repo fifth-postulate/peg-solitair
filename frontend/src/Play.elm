@@ -1,7 +1,8 @@
 module Play exposing (main)
 
 import Browser exposing (Document)
-import Html
+import Html exposing (Html)
+import Solitair
 
 
 main : Program () Model Msg
@@ -15,28 +16,65 @@ main =
 
 
 type Model
-    = Blank
+    = App
+        { current : Solitair.Model
+        }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Blank, Cmd.none )
+    ( App { current = Solitair.standard }, Cmd.none )
 
 
 view : Model -> Document Msg
-view _ =
+view model =
     { title = "Peg Solitair"
-    , body = [ Html.text "Hello, World!" ]
+    , body =
+        [ viewHeader
+        , viewMain model
+        , viewFooter
+        ]
     }
 
 
+viewHeader : Html Msg
+viewHeader =
+    Html.header []
+        [ Html.h1 [] [ Html.text "Peg Solitair" ]
+        ]
+
+
+viewMain : Model -> Html Msg
+viewMain (App { current }) =
+    Html.main_ []
+        [ Html.map CurrentGame <| Solitair.view current
+        ]
+
+
+viewFooter : Html Msg
+viewFooter =
+    Html.footer []
+        [ Html.h6 [] [ Html.text "Made with ❤️" ]
+        ]
+
+
 type Msg
-    = Nothing
+    = CurrentGame Solitair.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update _ model =
-    ( model, Cmd.none )
+update msg (App app) =
+    case msg of
+        CurrentGame m ->
+            let
+                ( current, cmd ) =
+                    Solitair.update m app.current
+
+                next =
+                    App
+                        { app | current = current }
+            in
+            ( next, Cmd.map CurrentGame cmd )
 
 
 subscriptions : Model -> Sub Msg
