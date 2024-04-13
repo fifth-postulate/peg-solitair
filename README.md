@@ -6,7 +6,7 @@ This project provides an implementation of [Peg Solitair][wikipedia:solitair].
 We aim to provide the following
 
 * [x] A means to play peg solitair.
-* [ ] A means to configure various boards an puzzles.
+* [ ] A means to configure various boards and puzzles.
 * [ ] A solver to solve different puzzles.
 
 [wikipedia:solitair]: https://en.wikipedia.org/wiki/Peg_solitaire
