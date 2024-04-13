@@ -1,6 +1,7 @@
 module Solitair exposing (Model, Msg, standard, update, view)
 
 import Html exposing (Html)
+import Html.Events as Event
 import Set exposing (Set)
 import Solitair.Board as Board
 
@@ -10,7 +11,12 @@ type Model
         { board : Board.Model
         , pegs : Set Board.Position
         , selected : Maybe Board.Position
+        , history : List Move
         }
+
+
+type alias Move =
+    ( Board.Position, Board.Position, Board.Position )
 
 
 standard : Model
@@ -29,17 +35,18 @@ standard =
                 |> List.concatMap (List.map identity)
                 |> Set.fromList
         , selected = Nothing
+        , history = []
         }
 
 
 view : Model -> Html Msg
-view (Solitair { board, pegs, selected }) =
+view ((Solitair { board, pegs, selected }) as model) =
     let
-        moveable : ( Board.Position, Board.Position, Board.Position ) -> Bool
+        moveable : Move -> Bool
         moveable ( x, y, z ) =
             Set.member x pegs && Set.member y pegs && not (Set.member z pegs)
 
-        candidates : List ( Board.Position, Board.Position, Board.Position )
+        candidates : List Move
         candidates =
             selected
                 |> Maybe.map (\p -> Board.moveCandidates p board)
@@ -57,13 +64,28 @@ view (Solitair { board, pegs, selected }) =
             candidates
             pegs
             board
+        , viewUndo model
         ]
+
+
+viewUndo : Model -> Html Msg
+viewUndo (Solitair { history }) =
+    let
+        elements =
+            if not (List.isEmpty history) then
+                [ Html.button [ Event.onClick Undo ] [ Html.text "←" ] ]
+
+            else
+                []
+    in
+    Html.div [] elements
 
 
 type Msg
     = Select Board.Position
     | Deselect
-    | Move ( Board.Position, Board.Position, Board.Position )
+    | Move Move
+    | Undo
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -75,21 +97,50 @@ update msg ((Solitair m) as model) =
         Deselect ->
             ( Solitair { m | selected = Nothing }, Cmd.none )
 
-        Move (( p, q, r ) as move) ->
-            let
-                pegs =
-                    if legal move model then
-                        m.pegs
-                            |> Set.remove p
-                            |> Set.remove q
-                            |> Set.insert r
+        Move move ->
+            ( do move model, Cmd.none )
 
-                    else
-                        m.pegs
-            in
-            ( Solitair { m | selected = Nothing, pegs = pegs }, Cmd.none )
+        Undo ->
+            ( undo model, Cmd.none )
 
 
-legal : ( Board.Position, Board.Position, Board.Position ) -> Model -> Bool
+do : Move -> Model -> Model
+do (( p, q, r ) as move) ((Solitair m) as model) =
+    let
+        ( pegs, history ) =
+            if legal move model then
+                ( m.pegs
+                    |> Set.remove p
+                    |> Set.remove q
+                    |> Set.insert r
+                , move :: m.history
+                )
+
+            else
+                ( m.pegs, m.history )
+    in
+    Solitair { m | selected = Nothing, pegs = pegs, history = history }
+
+
+legal : Move -> Model -> Bool
 legal ( p, q, r ) (Solitair { pegs }) =
     Set.member p pegs && Set.member q pegs && not (Set.member r pegs)
+
+
+undo : Model -> Model
+undo (Solitair m) =
+    let
+        ( pegs, history ) =
+            case m.history of
+                ( p, q, r ) :: rest ->
+                    ( m.pegs
+                        |> Set.insert p
+                        |> Set.insert q
+                        |> Set.remove r
+                    , rest
+                    )
+
+                [] ->
+                    ( m.pegs, m.history )
+    in
+    Solitair { m | selected = Nothing, pegs = pegs, history = history }
