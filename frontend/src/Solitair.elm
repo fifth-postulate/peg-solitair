@@ -34,22 +34,62 @@ standard =
 
 view : Model -> Html Msg
 view (Solitair { board, pegs, selected }) =
+    let
+        moveable : ( Board.Position, Board.Position, Board.Position ) -> Bool
+        moveable ( x, y, z ) =
+            Set.member x pegs && Set.member y pegs && not (Set.member z pegs)
+
+        candidates : List ( Board.Position, Board.Position, Board.Position )
+        candidates =
+            selected
+                |> Maybe.map (\p -> Board.moveCandidates p board)
+                |> Maybe.map (List.filter moveable)
+                |> Maybe.withDefault []
+    in
     Html.div []
         [ Html.h2 [] [ Html.text "Classic" ]
-        , Board.view { selectPeg = Select, deselectPeg = Deselect } selected pegs board
+        , Board.view
+            { selectPeg = Select
+            , deselectPeg = Deselect
+            , move = Move
+            }
+            selected
+            candidates
+            pegs
+            board
         ]
 
 
 type Msg
     = Select Board.Position
     | Deselect
+    | Move ( Board.Position, Board.Position, Board.Position )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg (Solitair model) =
+update msg ((Solitair m) as model) =
     case msg of
         Select position ->
-            ( Solitair { model | selected = Just position }, Cmd.none )
+            ( Solitair { m | selected = Just position }, Cmd.none )
 
         Deselect ->
-            ( Solitair { model | selected = Nothing }, Cmd.none )
+            ( Solitair { m | selected = Nothing }, Cmd.none )
+
+        Move (( p, q, r ) as move) ->
+            let
+                pegs =
+                    if legal move model then
+                        m.pegs
+                            |> Set.remove p
+                            |> Set.remove q
+                            |> Set.insert r
+
+                    else
+                        m.pegs
+            in
+            ( Solitair { m | selected = Nothing, pegs = pegs }, Cmd.none )
+
+
+legal : ( Board.Position, Board.Position, Board.Position ) -> Model -> Bool
+legal ( p, q, r ) (Solitair { pegs }) =
+    Set.member p pegs && Set.member q pegs && not (Set.member r pegs)

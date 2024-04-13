@@ -1,5 +1,6 @@
-module Solitair.Board exposing (Model, Position, standard, view)
+module Solitair.Board exposing (Model, Position, moveCandidates, standard, view)
 
+import List exposing (singleton)
 import Set exposing (Set)
 import Svg exposing (Attribute, Svg)
 import Svg.Attributes as Attribute
@@ -24,6 +25,56 @@ type alias Position =
 
 type alias Location =
     ( Float, Float )
+
+
+type alias Translation =
+    ( Int, Int )
+
+
+translate : Translation -> Position -> Position
+translate ( dx, dy ) ( x, y ) =
+    ( x + dx, y + dy )
+
+
+scale : Int -> Translation -> Translation
+scale k ( dx, dy ) =
+    ( k * dx, k * dy )
+
+
+movesFrom : Kind -> Position -> List ( Position, Position, Position )
+movesFrom kind position =
+    let
+        directions : List Translation
+        directions =
+            case kind of
+                Rectangular ->
+                    [ ( 1, 0 ), ( 0, 1 ), ( -1, 0 ), ( 0, -1 ) ]
+
+                Hexagonal ->
+                    [ ( 1, 0 ), ( 0, 1 ), ( -1, 1 ), ( -1, 0 ), ( 0, -1 ), ( 1, -1 ) ]
+
+        candidate : Translation -> ( Position, Position, Position )
+        candidate translation =
+            ( translate (scale 0 translation) position
+            , translate (scale 1 translation) position
+            , translate (scale 2 translation) position
+            )
+    in
+    directions
+        |> List.map candidate
+
+
+moveCandidates : Position -> Model -> List ( Position, Position, Position )
+moveCandidates position (Board { kind, positions }) =
+    let
+        allInBoard : ( Position, Position, Position ) -> Bool
+        allInBoard ( x, y, z ) =
+            [ x, y, z ]
+                |> List.all (\u -> Set.member u positions)
+    in
+    position
+        |> movesFrom kind
+        |> List.filter allInBoard
 
 
 standard : Model
@@ -82,7 +133,7 @@ location kind ( x, y ) =
 
 type alias Configuration =
     { peg : Circular (Selectable (Circular {}))
-    , hole : Circular {}
+    , hole : Circular (Selectable (Circular {}))
     }
 
 
@@ -103,23 +154,29 @@ default =
         , fill = "black"
         , selected = { radius = "0.3", stroke = "blue", fill = "blue" }
         }
-    , hole = { radius = "0.20", stroke = "gray", fill = "white" }
+    , hole =
+        { radius = "0.2"
+        , stroke = "gray"
+        , fill = "white"
+        , selected = { radius = "0.2", stroke = "gray", fill = "green" }
+        }
     }
 
 
 type alias Messages msg =
     { selectPeg : Position -> msg
     , deselectPeg : msg
+    , move : ( Position, Position, Position ) -> msg
     }
 
 
-view : Messages msg -> Maybe Position -> Set Position -> Model -> Svg msg
+view : Messages msg -> Maybe Position -> List ( Position, Position, Position ) -> Set Position -> Model -> Svg msg
 view =
     viewTemplate default
 
 
-viewTemplate : Configuration -> Messages msg -> Maybe Position -> Set Position -> Model -> Svg msg
-viewTemplate config messages selectedPeg pegs (Board { kind, positions }) =
+viewTemplate : Configuration -> Messages msg -> Maybe Position -> List ( Position, Position, Position ) -> Set Position -> Model -> Svg msg
+viewTemplate config messages selectedPeg candidates pegs (Board { kind, positions }) =
     let
         locate =
             location kind
@@ -130,6 +187,20 @@ viewTemplate config messages selectedPeg pegs (Board { kind, positions }) =
                 |> Maybe.map (Tuple.mapBoth locate locate)
                 |> Maybe.withDefault ( ( 0, 0 ), ( 1, 1 ) )
                 |> toViewBox
+
+        viewAHole : ( Position, Location ) -> Svg msg
+        viewAHole ( p, l ) =
+            let
+                move =
+                    candidates
+                        |> List.filter (\( _, _, q ) -> p == q)
+            in
+            case move of
+                m :: _ ->
+                    viewHole (Just <| messages.move m) config.hole.selected l
+
+                [] ->
+                    viewHole Nothing config.hole l
 
         viewAPeg : ( Position, Location ) -> Svg msg
         viewAPeg ( p, l ) =
@@ -146,9 +217,9 @@ viewTemplate config messages selectedPeg pegs (Board { kind, positions }) =
     in
     Svg.svg [ viewBox, Attribute.width "60vmin", Attribute.height "60vmin" ]
         [ positions
-            |> Set.map locate
+            |> Set.map (\p -> ( p, locate p ))
             |> Set.toList
-            |> List.map (viewHole config.hole)
+            |> List.map viewAHole
             |> Svg.g [ Attribute.strokeWidth "0.01", Attribute.stroke config.hole.stroke, Attribute.fill config.hole.fill ]
         , pegs
             |> Set.map (\p -> ( p, locate p ))
@@ -170,9 +241,25 @@ toViewBox ( ( llx, lly ), ( urx, ury ) ) =
         |> Attribute.viewBox
 
 
-viewHole : Circular e -> Location -> Svg msg
-viewHole config ( x, y ) =
-    Svg.circle [ Attribute.r config.radius, Attribute.cx <| String.fromFloat x, Attribute.cy <| String.fromFloat y ] []
+viewHole : Maybe msg -> Circular e -> Location -> Svg msg
+viewHole msg config ( x, y ) =
+    let
+        attribute =
+            msg
+                |> Maybe.map Event.onClick
+                |> Maybe.map singleton
+                |> Maybe.withDefault []
+    in
+    Svg.circle
+        (attribute
+            ++ [ Attribute.r config.radius
+               , Attribute.cx <| String.fromFloat x
+               , Attribute.cy <| String.fromFloat y
+               , Attribute.stroke config.stroke
+               , Attribute.fill config.fill
+               ]
+        )
+        []
 
 
 viewPeg : msg -> Circular e -> Location -> Svg msg
