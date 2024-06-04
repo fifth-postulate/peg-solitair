@@ -8,7 +8,8 @@ import Solitair.Board as Board
 
 type Model
     = Solitair
-        { board : Board.Model
+        { name : String
+        , board : Board.Model
         , pegs : Set Board.Position
         , selected : Maybe Board.Position
         , history : List Move
@@ -22,7 +23,8 @@ type alias Move =
 standard : Model
 standard =
     Solitair
-        { board = Board.standard
+        { name = "Classic"
+        , board = Board.standard
         , pegs =
             [ [ ( -1, 3 ), ( 0, 3 ), ( 1, 3 ) ]
             , [ ( -1, 2 ), ( 0, 2 ), ( 1, 2 ) ]
@@ -40,7 +42,7 @@ standard =
 
 
 view : Model -> Html Msg
-view ((Solitair { board, pegs, selected }) as model) =
+view ((Solitair { name, board, pegs, selected }) as model) =
     let
         moveable : Move -> Bool
         moveable ( x, y, z ) =
@@ -54,7 +56,7 @@ view ((Solitair { board, pegs, selected }) as model) =
                 |> Maybe.withDefault []
     in
     Html.div []
-        [ Html.h2 [] [ Html.text "Classic" ]
+        [ Html.h2 [] [ Html.text name ]
         , Board.view
             { selectPeg = Select
             , deselectPeg = Deselect
