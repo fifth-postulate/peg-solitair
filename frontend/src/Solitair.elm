@@ -13,6 +13,7 @@ type Model
         , pegs : Set Board.Position
         , selected : Maybe Board.Position
         , history : List Move
+        , plan : Maybe (List Move)
         }
 
 
@@ -38,11 +39,12 @@ standard =
                 |> Set.fromList
         , selected = Nothing
         , history = []
+        , plan = Nothing
         }
 
 
 view : Model -> Html Msg
-view ((Solitair { name, board, pegs, selected }) as model) =
+view ((Solitair { name, board, pegs, selected, plan }) as model) =
     let
         moveable : Move -> Bool
         moveable ( x, y, z ) =
@@ -54,6 +56,10 @@ view ((Solitair { name, board, pegs, selected }) as model) =
                 |> Maybe.map (\p -> Board.moveCandidates p board)
                 |> Maybe.map (List.filter moveable)
                 |> Maybe.withDefault []
+
+        marked =
+            plan
+                |> Maybe.andThen List.head
     in
     Html.div []
         [ Html.h2 [] [ Html.text name ]
@@ -63,6 +69,7 @@ view ((Solitair { name, board, pegs, selected }) as model) =
             , move = Move
             }
             selected
+            marked
             candidates
             pegs
             board
@@ -109,19 +116,30 @@ update msg ((Solitair m) as model) =
 do : Move -> Model -> Model
 do (( p, q, r ) as move) ((Solitair m) as model) =
     let
-        ( pegs, history ) =
+        ( pegs, history, plan ) =
             if legal move model then
-                ( m.pegs
-                    |> Set.remove p
-                    |> Set.remove q
-                    |> Set.insert r
-                , move :: m.history
-                )
+                if Just move == Maybe.andThen List.head m.plan then
+                    ( m.pegs
+                        |> Set.remove p
+                        |> Set.remove q
+                        |> Set.insert r
+                    , move :: m.history
+                    , m.plan |> Maybe.andThen List.tail
+                    )
+
+                else
+                    ( m.pegs
+                        |> Set.remove p
+                        |> Set.remove q
+                        |> Set.insert r
+                    , move :: m.history
+                    , Nothing
+                    )
 
             else
-                ( m.pegs, m.history )
+                ( m.pegs, m.history, m.plan )
     in
-    Solitair { m | selected = Nothing, pegs = pegs, history = history }
+    Solitair { m | selected = Nothing, pegs = pegs, history = history, plan = plan }
 
 
 legal : Move -> Model -> Bool
