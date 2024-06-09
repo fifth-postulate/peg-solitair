@@ -63,6 +63,7 @@ view ((Solitair { name, board, pegs, selected, plan }) as model) =
     in
     Html.div []
         [ Html.h2 [] [ Html.text name ]
+        , viewControl model
         , Board.view
             { selectPeg = Select
             , deselectPeg = Deselect
@@ -73,7 +74,14 @@ view ((Solitair { name, board, pegs, selected, plan }) as model) =
             candidates
             pegs
             board
-        , viewUndo model
+        ]
+
+
+viewControl : Model -> Html Msg
+viewControl model =
+    Html.div []
+        [ viewUndo model
+        , viewSolve model
         ]
 
 
@@ -87,7 +95,21 @@ viewUndo (Solitair { history }) =
             else
                 []
     in
-    Html.div [] elements
+    Html.span [] elements
+
+
+viewSolve : Model -> Html Msg
+viewSolve (Solitair { plan }) =
+    let
+        elements =
+            case plan of
+                Nothing ->
+                    [ Html.button [] [ Html.text "solve" ] ]
+
+                Just moves ->
+                    []
+    in
+    Html.span [] elements
 
 
 type Msg
