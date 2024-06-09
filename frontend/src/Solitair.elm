@@ -104,7 +104,7 @@ viewSolve (Solitair { plan }) =
         elements =
             case plan of
                 Nothing ->
-                    [ Html.button [] [ Html.text "solve" ] ]
+                    [ Html.button [ Event.onClick Plan ] [ Html.text "solve" ] ]
 
                 Just moves ->
                     []
@@ -116,6 +116,7 @@ type Msg
     = Select Board.Position
     | Deselect
     | Move Move
+    | Plan
     | Undo
 
 
@@ -130,6 +131,9 @@ update msg ((Solitair m) as model) =
 
         Move move ->
             ( do move model, Cmd.none )
+
+        Plan ->
+            ( solve model, Cmd.none )
 
         Undo ->
             ( undo model, Cmd.none )
@@ -186,3 +190,8 @@ undo (Solitair m) =
                     ( m.pegs, m.history )
     in
     Solitair { m | selected = Nothing, pegs = pegs, history = history }
+
+
+solve : Model -> Model
+solve (Solitair m) =
+    Solitair m
