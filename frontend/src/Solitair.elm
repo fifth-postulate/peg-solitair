@@ -4,6 +4,7 @@ import Html exposing (Html)
 import Html.Events as Event
 import Set exposing (Set)
 import Solitair.Board as Board
+import Solver
 
 
 type Model
@@ -46,15 +47,10 @@ standard =
 view : Model -> Html Msg
 view ((Solitair { name, board, pegs, selected, plan }) as model) =
     let
-        moveable : Move -> Bool
-        moveable ( x, y, z ) =
-            Set.member x pegs && Set.member y pegs && not (Set.member z pegs)
-
         candidates : List Move
         candidates =
             selected
-                |> Maybe.map (\p -> Board.moveCandidates p board)
-                |> Maybe.map (List.filter moveable)
+                |> Maybe.map (possibleMovesFor model)
                 |> Maybe.withDefault []
 
         marked =
@@ -143,7 +139,7 @@ do : Move -> Model -> Model
 do (( p, q, r ) as move) ((Solitair m) as model) =
     let
         ( pegs, history, plan ) =
-            if legal move model then
+            if legal model move then
                 if Just move == Maybe.andThen List.head m.plan then
                     ( m.pegs
                         |> Set.remove p
@@ -168,8 +164,22 @@ do (( p, q, r ) as move) ((Solitair m) as model) =
     Solitair { m | selected = Nothing, pegs = pegs, history = history, plan = plan }
 
 
-legal : Move -> Model -> Bool
-legal ( p, q, r ) (Solitair { pegs }) =
+possibleMoves : Model -> List Move
+possibleMoves ((Solitair { pegs }) as model) =
+    pegs
+        |> Set.toList
+        |> List.concatMap (possibleMovesFor model)
+
+
+possibleMovesFor : Model -> Board.Position -> List Move
+possibleMovesFor ((Solitair { board }) as model) p =
+    board
+        |> Board.moveCandidates p
+        |> List.filter (legal model)
+
+
+legal : Model -> Move -> Bool
+legal (Solitair { pegs }) ( p, q, r ) =
     Set.member p pegs && Set.member q pegs && not (Set.member r pegs)
 
 
@@ -193,5 +203,14 @@ undo (Solitair m) =
 
 
 solve : Model -> Model
-solve (Solitair m) =
-    Solitair m
+solve ((Solitair m) as model) =
+    let
+        plan =
+            Solver.solve isSolved possibleMoves do model
+    in
+    Solitair { m | plan = plan }
+
+
+isSolved : Model -> Bool
+isSolved (Solitair m) =
+    1 == Set.size m.pegs
